@@ -1,0 +1,86 @@
+---
+- name: Gather facts about VPC 
+  ec2_vpc_net_facts:
+    region: "{{ region }}"
+    filters:
+      "tag:Name": "{{ vpc_name }}"
+  register: vpc_facts
+
+- name: Set the vpc_id fact
+  set_fact:
+    vpc_id: "{{ vpc_facts.vpcs[0].id }}"
+
+- name: Gather info about public Subnets
+  ec2_vpc_subnet_facts:
+    filters:
+      vpc-id: "{{ vpc_id }}"
+      "tag:Name": "*Public*"
+  register: public_subnets
+
+- name: Store public subnet ID's
+  set_fact:
+    public_subnet_ids: "{{ public_subnets | json_query ('subnets[*].subnet_id') }}"
+
+- name: Gather facts about all Internet Gateways for the VPC
+  ec2_vpc_igw_facts:
+    region: "{{ region }}"
+    filters:
+      attachment.vpc-id: "{{ vpc_id }}"
+  register: igw_facts
+
+- name: Create the routing table for each of the Public subnets
+  ec2_vpc_route_table:
+    state: present
+    region: "{{ region }}"
+    vpc_id: "{{ vpc_id }}"
+    subnets: "{{ public_subnet_ids }}"
+    purge_routes: "{{ route_purge_routes }}"
+    purge_subnets: "{{ route_purge_subnets }}"
+    purge_tags: "{{ route_purge_tags }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ igw_facts.internet_gateways[0].internet_gateway_id }}"
+    tags:
+      Name: "Public-RT-{{ vpc_name }}"
+  register: public_route_table
+
+- name: Gather info about private Subnets 
+  ec2_vpc_subnet_facts:
+    filters:
+      vpc-id: "{{ vpc_id }}"
+      "tag:Name": "*Private*"
+  register: private_subnets
+
+- name: Get all NAT Gateways from VPC
+  ec2_vpc_nat_gateway_facts:
+    region: "{{ region }}"
+    filters:
+      vpc-id: "{{ vpc_id }}"
+  register: natgw_facts
+
+- name: Set the NAT Gateway list - per Availability Zone
+  set_fact:
+    natgw_list: "{{ natgw_list|default([]) + [{ 'availability_zone': item.1.availability_zone, 'subnet_id': item.1.subnet_id, 'nat_gateway_id': item.0.nat_gateway_id }] }}"
+  with_nested:
+     - "{{ natgw_facts.result }}"
+     - "{{ public_subnets.subnets }}"
+  when: 
+    - item.1.id == item.0.subnet_id 
+
+- name: Create the routing table for each of the Private subnets - using its NAT Gateway
+  ec2_vpc_route_table:
+    state: present
+    region: "{{ region }}"
+    vpc_id: "{{ vpc_id }}"
+    tags:
+      Name: "Private-RT-{{ item.1.availability_zone }}"
+    subnets: "{{ item.1.subnet_id }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ item.0.nat_gateway_id }}"
+  with_nested:
+      - "{{ natgw_list }}"
+      - "{{ private_subnets.subnets }}"
+  when: 
+    - item.1.availability_zone == item.0.availability_zone
+  register: private_route_table

@@ -1,2 +1,7 @@
 ---
-# tasks file for aws-route
+- include: create.yml
+  when:
+    - create is defined
+- include: rollback.yml
+  when:
+    - rollback is defined
