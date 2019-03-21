@@ -1,38 +1,86 @@
-Role Name
-=========
+# aws-subnet
 
-A brief description of the role goes here.
+Will create Route tables in an existing VPC 
+Private subnets (that have the word Private in their Name tag) will be routed out through its respective NAT 
+Gateway in its availability Zone.
+Public subnets (that have the word Public in their Name tag) will be routed out through the Internet Gateway
 
-Requirements
-------------
+## Requirements
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+- AWS credentials and the correct permissions to create the resources
+- An existing VPC with a tagged Name
+- Internet Gateway defined and attached to the VPC
+- A NAT Gateway defined in each availability Zone
 
-Role Variables
---------------
+## Role Variables
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+The variables uses in this role are
 
-Dependencies
-------------
+| Variable Name | Required | Description | 
+|----|----|----|
+| `region`| **Yes** | The region that you will deploy into |
+| `vpc_name` | **Yes** | Used for identification of VPC |
+| `route_purge_routes` | Optional | Purge existing routes that are not found in routes <br> - Default `yes` |
+| `route_purge_subnets` | Optional | Purge existing subnets that are not found in subnets <br> - Default `true` |
+| `route_purge_tags` | Optional | Purge existing tags that are not found in route table <br> - Default `yes` |
 
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
+## Dependencies
 
-Example Playbook
-----------------
+None
 
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
+## Example Playbook
 
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
+### Download dependencies
 
-License
--------
+#### Create requirements file
+
+Create a `requirements.yml` file with the following contents
+
+```
+- src: https://github.com/maishsk/aws-route
+  version: master
+```
+
+#### Download dependencies
+Run the following command:
+```
+ansible-galaxy install -r requirements.yml --force -p .
+```
+
+### Create playbook 
+Create a `main.yaml` file with the following contents:
+```
+---
+- name: Create Routes
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - vars/vars.yml
+  roles:
+    - aws-route
+```
+
+Create a `vars/vars.yml` with the content similar to:
+
+```
+vpc_name: maish_test
+region: us-east-2
+```
+
+## Running the playbook
+
+To create the Routes
+
+`ansible-playbook main.yml -e "create=true"`
+
+To remove the Routes
+
+`ansible-playbook main.yml -e "rollback=true"`
+
+## License
 
 BSD
 
-Author Information
-------------------
-
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
+## Author Information
+This role was created by [Maish Saidel-Keesing](https://www.maishsk.com/), author of [The Cloud Walkabout](http://cloudwalkabout.com/).
