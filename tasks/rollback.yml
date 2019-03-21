@@ -1,0 +1,53 @@
+---
+- name: Gather facts about VPC before deletion
+  ec2_vpc_net_facts:
+    region: "{{ region }}"
+    filters:
+      "tag:Name": "{{ vpc_name }}"
+  register: vpc_facts
+
+- name: Set VPC ID fact
+  set_fact:
+    vpc_id: "{{ vpc_facts.vpcs[0].id }}"
+
+- name: Gather facts about Public Route Tables before deletion
+  ec2_vpc_route_table_facts:
+    region: "{{ region }}"
+    filters:
+      vpc-id: "{{ vpc_id }}"
+      "tag:Name": "Public*"
+  register: public_route_table_facts
+
+- name: Remove the Public Route Tables
+  ec2_vpc_route_table:
+    region: "{{ region }}"
+    vpc_id: "{{ vpc_id }}"
+    route_table_id: "{{ item.id }}"
+    state: absent
+    lookup: id
+  with_items: "{{ public_route_table_facts.route_tables }}"
+  when: 
+    - public_route_table_facts is defined
+
+- name: Gather facts about Private Route Tables before deletion
+  ec2_vpc_route_table_facts:
+    region: "{{ region }}"
+    filters:
+      vpc-id: "{{ vpc_id }}"
+      "tag:Name": "Private*"
+  register: private_route_table_facts
+
+- name: Remove the Public Route Tables
+  ec2_vpc_route_table:
+    region: "{{ region }}"
+    vpc_id: "{{ vpc_id }}"
+    route_table_id: "{{ item.id }}"
+    state: absent
+    lookup: id
+  with_items: "{{ private_route_table_facts.route_tables }}"
+  when: 
+    - private_route_table_facts is defined
+
+# - name: Display all variables/facts
+#   debug:
+#     var: hostvars[inventory_hostname]
