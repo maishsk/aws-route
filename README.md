@@ -1,9 +1,9 @@
 # aws-subnet
 
-Will create Route tables in an existing VPC 
+Will create Route tables in an existing VPC    
 Private subnets (that have the word Private in their Name tag) will be routed out through its respective NAT 
-Gateway in its availability Zone.
-Public subnets (that have the word Public in their Name tag) will be routed out through the Internet Gateway
+Gateway in its availability Zone.   
+Public subnets (that have the word Public in their Name tag) will be routed out through the Internet Gateway   
 
 ## Requirements
 
