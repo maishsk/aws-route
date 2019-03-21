@@ -1,2 +1,4 @@
 ---
-# defaults file for aws-route
+route_purge_routes: yes
+route_purge_subnets: true
+route_purge_tags: yes
