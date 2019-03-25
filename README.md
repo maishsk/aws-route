@@ -51,14 +51,27 @@ ansible-galaxy install -r requirements.yml --force -p .
 Create a `main.yaml` file with the following contents:
 ```
 ---
-- name: Create Routes
+- name: Route Provisioning
   hosts: localhost
   connection: local
   gather_facts: false
   vars_files:
     - vars/vars.yml
-  roles:
-    - aws-route
+
+  tasks:
+  - name: Create Process
+    include_role:
+      name: "{{ item }}"
+    with_items:
+      - aws-route
+    tags: [ 'never', 'create' ]
+
+  - name: Rollback Process
+    include_role:
+      name: "{{ item }}"
+    with_items:
+      - aws-route
+    tags: [ 'never', 'rollback' ]
 ```
 
 Create a `vars/vars.yml` with the content similar to:
@@ -72,11 +85,12 @@ region: us-east-2
 
 To create the Routes
 
-`ansible-playbook main.yml -e "create=true"`
+`ansible-playbook main.yml --tags create`
 
 To remove the Routes
 
-`ansible-playbook main.yml -e "rollback=true"`
+`ansible-playbook main.yml --tags rollback`
+
 
 ## License
 
